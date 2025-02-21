@@ -1,8 +1,11 @@
 const express = require('express')
+var cors = require('cors')
 const Gemini = require("./utils/Gemini/gemini");
 const app = express()
 const port = 3000
 const axios = require("axios");
+
+app.use(cors())
 
 // Fetch random words from an API
 
