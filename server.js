@@ -1,28 +1,48 @@
-const express = require('express')
-var cors = require('cors')
+require("dotenv").config();
+const express = require("express");
+var cors = require('cors');
 const Gemini = require("./utils/Gemini/gemini");
-const app = express()
-const port = 3000
+const mongoose = require("mongoose");
 const axios = require("axios");
+const authRoutes = require("./routes/authRoutes");
+const leaderboardRoutes = require("./routes/leaderboardRoutes");
+const app = express();
+
+mongoose
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.log(err));
+
+
+app.use("/api", leaderboardRoutes);
+
 
 app.use(cors())
+app.use(express.json());
+app.use("/api/auth", authRoutes);
+//.........................................................................
+
+
+app.get('/', (req, res) => res.send('<center><h1>E.C.E. IE Project backend</h1></center>'))
+
 
 // Fetch random words from an API
 
-const getWord = async () => {
+
+
+const getWords = async () => {
   try {
-    const response = await axios.get("https://random-word-api.herokuapp.com/word?number=1");
-    return response.data[0]; // Returns a random word
+    const response = await axios.get("https://random-word-api.vercel.app/api?words=5");
+
+    return response.data; // Returns an array of 5 words
   } catch (error) {
-    console.error("Error fetching word:", error);
-    return "default"; // Fallback word
+    console.error("Error fetching words:", error);
+    return ["default"]; 
   }
 };
 
 // Function to scramble a word
 const scrambleWord = (word) => {
-  // console.log("1",word)
-  // console.log(typeof word)
   let shuffled = word.toUpperCase().split("");
   for (let i = shuffled.length - 1; i > 0; i--) {
     let j = Math.floor(Math.random() * (i + 1));
@@ -41,23 +61,31 @@ const getMeaning = async (word) => {
   }
 };
 
-
-
-app.use(express.json()); // Middleware for JSON requests
-
-app.get('/', (req, res) => res.send('<center><h1>E.C.E. IE Project backend</h1></center>'))
-
 app.get("/scramble", async (req, res) => {
-  const word = await getWord()
-  const meaning = await getMeaning(word);
-  // console.log(word)
-  res.json({ scrambled: scrambleWord(word), original: word.toUpperCase(),meaning });
+  try {
+    const words = await getWords(); // Get 5 words
+
+    const wordData = await Promise.all(
+      words.map(async (word) => {
+        const meaning = await getMeaning(word);
+        return {
+          scrambled: scrambleWord(word),
+          original: word.toUpperCase(),
+          meaning,
+        };
+      })
+    );
+
+    res.json({ words: wordData });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
 });
 
 // Endpoint to check if the guess is correct
 app.post("/check", (req, res) => {
   const { word, guess } = req.body;
-  // console.log(req.body)
   if (!word || !guess) {
     return res.status(400).json({ message: "Missing word or guess" });
   }
@@ -73,7 +101,7 @@ app.post('/make-question', async (req, res) => {
         }
 
         // Construct prompt to get MCQs in JSON format
-        const query = `${paragraph.trim()},Create a reading comprehension quiz based on the provided paragraph.Generate 10 question.  Generate multiple-choice questions (MCQs), including at least one "fill in the blank" type question with multiple options, and at least "true/false" type question with true ans false option.  Return the quiz in JSON format, adhering to the structure below.  The JSON should be easily parsable for use in a quiz-style game.  Ensure the "correctAnswer" field contains the correct answer for each question.  For fill-in-the-blank questions, the "correctAnswer" should correspond to the correct option (A, B, C, or D). For MCQs, the "correctAnswer" should correspond to the correct option (A, B, C, or D).  For true/false questions, use "true" or "false" as the correctAnswer.Make question in same language as paragraph.
+        const query = `${paragraph.trim()},Create a reading comprehension quiz based on the provided paragraph.Generate 10 question.  Generate multiple-choice questions (MCQs), including at least one "fill in the blank" type question with multiple options, and at least "true/false" type question with true ans false option.  Return the quiz in JSON format, adhering to the structure below.  The JSON should be easily parsable for use in a quiz-style game.  Ensure the "correctAnswer" field contains the correct answer for each question.  For fill-in-the-blank questions, the "correctAnswer" should correspond to the correct option (A, B, C, or D). For MCQs, the "correctAnswer" should correspond to the correct option (A, B, C, or D).  For true/false questions, use "true" or "false" as the correctAnswer.Make question in same language as paragraph. Try to provide different questions every time even though the paragraph is same.
 
 json
 {
@@ -146,4 +174,6 @@ json
     }
 });
 
-app.listen(port, () => console.log(`Example app running on http://localhost:${port}`))
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
