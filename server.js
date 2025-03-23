@@ -5,7 +5,8 @@ const Gemini = require("./utils/Gemini/gemini");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const authRoutes = require("./routes/authRoutes");
-const leaderboardRoutes = require("./routes/leaderboardRoutes");
+// const leaderboardRoutes = require("./routes/leaderboardRoutes");
+const Score = require("./models/Score"); // Assuming you have a Score model defined
 const app = express();
 
 mongoose
@@ -14,7 +15,7 @@ mongoose
   .catch((err) => console.log(err));
 
 
-app.use("/api", leaderboardRoutes);
+// app.use("/api", leaderboardRoutes);
 
 
 app.use(cors())
@@ -91,6 +92,100 @@ app.post("/check", (req, res) => {
   }
   const correct = word.toLowerCase() === guess.toLowerCase();
   res.json({ correct });
+});
+
+
+app.post("/submit-score", async (req, res) => {
+  try {
+    const { username, score, category } = req.body;
+    const token = req.headers.authorization?.split(" ")[1];
+    console.log("DFSDFSDFSDFSDFSDFSD")
+    if (!token || !username || typeof score !== "number") {
+      return res.status(400).json({ error: "Invalid request data" });
+    }
+
+    // Store the score with the current date in MongoDB
+    const newScore = new Score({
+      username,
+      score,
+      category,
+      date: new Date(),
+    });
+
+    await newScore.save();
+
+    res.json({ success: true, message: "Score submitted successfully" });
+  } catch (error) {
+    console.error("Error in /submit-score:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/score-history/WordScramble/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({ error: "Username is required" });
+    }
+
+    // Fetch score history from MongoDB with category "Word Scramble"
+    const scores = await Score.find({ username, category: "Word Scramble" }).sort({ date: -1 });
+
+    if (!scores || scores.length === 0) {
+      return res.status(404).json({ message: "No score history found for this user in Word Scramble category" });
+    }
+
+    res.json({ success: true, scores });
+  } catch (error) {
+    console.error("Error in /score-history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/score-history/MCQ/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({ error: "Username is required" });
+    }
+
+    // Fetch score history from MongoDB with category "Word Scramble"
+    const scores = await Score.find({ username, category: "MCQ" }).sort({ date: -1 });
+
+    if (!scores || scores.length === 0) {
+      return res.status(404).json({ message: "No score history found for this user in Word Scramble category" });
+    }
+
+    res.json({ success: true, scores });
+  } catch (error) {
+    console.error("Error in /score-history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/leaderboard/:category", async (req, res) => {
+  try {
+    const { category } = req.params;
+    if (!category || (category !== "MCQ" && category !== "Word Scramble")) {
+      return res.status(400).json({ error: "Invalid category. Use 'MCQ' or 'Word Scramble'." });
+    }
+
+    // Fetch top 10 scores for the given category sorted in descending order
+    const topScores = await Score.find({ category })
+      .sort({ score: -1, date: -1 })
+      .limit(10);
+
+    if (!topScores || topScores.length === 0) {
+      return res.status(404).json({ message: `No scores found for ${category}` });
+    }
+
+    res.json({ success: true, category, topScores });
+  } catch (error) {
+    console.error("Error fetching leaderboard:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 app.post('/make-question', async (req, res) => {
