@@ -196,9 +196,9 @@ app.post('/make-question', async (req, res) => {
         }
 
         // Construct prompt to get MCQs in JSON format
-        const query = `${paragraph.trim()},Create a reading comprehension quiz based on the provided paragraph.Generate 10 question.  Generate multiple-choice questions (MCQs), including at least one "fill in the blank" type question with multiple options, and at least "true/false" type question with true ans false option.  Return the quiz in JSON format, adhering to the structure below.  The JSON should be easily parsable for use in a quiz-style game.  Ensure the "correctAnswer" field contains the correct answer for each question.  For fill-in-the-blank questions, the "correctAnswer" should correspond to the correct option (A, B, C, or D). For MCQs, the "correctAnswer" should correspond to the correct option (A, B, C, or D).  For true/false questions, use "true" or "false" as the correctAnswer.Make question in same language as paragraph. Try to provide different questions every time even though the paragraph is same.
+        const query = `${paragraph.trim()}, Create a reading comprehension quiz based on the provided paragraph. Generate 10 questions. Generate multiple-choice questions (MCQs), including at least one "fill in the blank" type question with multiple options, and at least one "true/false" type question with true and false options. Return the quiz in JSON format, adhering to the structure below. The JSON should be easily parsable for use in a quiz-style game. Ensure the "correctAnswer" field is randomly distributed across all options (A, B, C, and D) for multiple-choice and fill-in-the-blank questions, ensuring no bias towards any specific option. For true/false questions, randomly distribute "true" and "false" answers. 
 
-json
+JSON format:
 {
   "title": "Reading Comprehension Quiz",
   "questions": [
@@ -211,7 +211,7 @@ json
         "C": "Option C text",
         "D": "Option D text"
       },
-      "correctAnswer": "B" // Example: Correct option is B
+      "correctAnswer": "A" // Ensure random distribution across A, B, C, and D
     },
     {
       "type": "fill-in-the-blank",
@@ -222,26 +222,16 @@ json
         "C": "data analysis",
         "D": "scientific research"
       },
-      "correctAnswer": "A" // Example: Correct option is A ("critical thinking")
+      "correctAnswer": "D" // Ensure random distribution across A, B, C, and D
     },
     {
       "type": "true/false",
       "question": "The paragraph argues that X is more important than Y.",
-      "correctAnswer": "true" // Example: The statement is true
-    },
-    {
-      "type": "multiple-choice",
-      "question": "According to the passage, which of the following is NOT mentioned?",
-      "options": {
-        "A": "Option A text",
-        "B": "Option B text",
-        "C": "Option C text",
-        "D": "Option D text"
-      },
-      "correctAnswer": "C" // Example: Correct option is C
+      "correctAnswer": "false" // Ensure balanced distribution of true/false
     }
   ]
-}`; 
+}`;
+
 
         // Call Gemini API
         const response = await Gemini(query);
